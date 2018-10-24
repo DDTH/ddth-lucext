@@ -1,0 +1,22 @@
+sudo: false
+
+language: java
+jdk:
+  - oraclejdk8
+
+cache:
+  directories:
+  - $HOME/.m2
+
+before_install:
+  # start 2 additional Redis instances for sharded-redis cache tests
+  - redis-server --port 7379 &
+  - redis-server --port 7380 &
+
+after_script:
+  - redis-cli -p 7379 SHUTDOWN
+  - redis-cli -p 7380 SHUTDOWN
+
+services:
+  - redis-server
+  - memcached

@@ -1,0 +1,58 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.github.ddth</groupId>
+		<artifactId>ddth-lucext</artifactId>
+		<version>0.1.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>ddth-lucext-redis</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>ddth-lucext-redis</name>
+	<description>DDTH's utilities and extensions for Apache Lucene</description>
+	<url>https://github.com/DDTH/ddth-lucext</url>
+
+	<developers>
+		<developer>
+			<id>btnguyen2k</id>
+			<name>Thanh Ba Nguyen</name>
+			<email>btnguyen2k@gmail.com</email>
+		</developer>
+	</developers>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-lucext-core</artifactId>
+			<version>0.1.0-SNAPSHOT</version>
+		</dependency>
+
+		<!-- for RedisDirectory -->
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+			<version>${version.jedis}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-commons-jedis</artifactId>
+			<version>${version.ddth_commons}</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-commons-serialization</artifactId>
+			<version>${version.ddth_commons}</version>
+			<type>pom</type>
+		</dependency>
+	</dependencies>
+</project>

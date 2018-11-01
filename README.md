@@ -10,7 +10,7 @@ Project home:
 
 ## Installation
 
-Latest release version: `0.1.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
+Latest release version: `0.2.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 Maven dependency: if only a sub-set of `ddth-lucext` functionality is used, choose the corresponding
 dependency artifact(s) to reduce the number of unused jar files.
@@ -19,9 +19,9 @@ dependency artifact(s) to reduce the number of unused jar files.
 
 ```xml
 <dependency>
-	<groupId>com.github.ddth</groupId>
-	<artifactId>ddth-lucext-core</artifactId>
-	<version>0.1.0</version>
+    <groupId>com.github.ddth</groupId>
+    <artifactId>ddth-lucext-core</artifactId>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -31,7 +31,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-lucext-cassandra</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <type>pom</type>
 </dependency>
 ```
@@ -42,13 +42,72 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-lucext-redis</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <type>pom</type>
 </dependency>
 ```
 
 
 ## Usage
+
+### `IndexManager`
+
+Help to manage index-objects (`IndexWriter`, `IndexSearcher` and `DirectoryReader`) associated with a `Directory`.
+
+```java
+// create an IndexManager instance
+IndexManager indexManager = new IndexManager(directory);
+
+// customize the IndexManager
+indexManager.setIndexWriterConfig(iwc)
+    .setScheduledExecutorService(ses)                    //supply a custom ScheduledExecutorService for background jobs
+    .setBackgroundRefreshIndexSearcherPeriodMs(10000)    //automatically refresh DirectoryReader and IndexSearcher per 10 seconds
+    .setBackgroundCommitIndexPeriodMs(1000)              //automatically call IndexWriter.commit() per 1 second
+    .setNrtIndexSearcher(true)                           //enable near-real-time IndexSearcher
+    ;
+
+// remember to initialize the IndexManager
+indexManager.init();
+```
+
+From this point, application obtains `IndexWriter`, `IndexSearcher` and `DirectoryReader` and works with them as usual.
+
+```java
+IndexWriter indexWriter = indexManager.getIndexWriter();
+indexWriter.addDocument(...);
+indexWriter.updateDocument(...);
+indexWriter.removeDocument(...);
+indexWriter.commit();
+// (optionally) notify IndexManager that the index has changed due to document adding/removing/updating
+//indexManager.markIndexChanged();
+
+IndexSearcher indexSearcher = indexManager.getIndexSearcher();
+indexSearcher.search(...);
+```
+
+Finally, do not forget to close the `IndexManager` when done:
+
+```java
+indexManager.destroy(); // or indexManager.close();
+```
+
+Notes:
+
+- Do not close the obtained `IndexWriter` or `DirectoryReader`! `IndexManager.close()` will take care of closing those instances.
+- Application is free to call `IndexWriter.commit()`. In most cases, however, let `IndexManager` do that in the background: `IndexManager.setBackgroundCommitIndexPeriodMs(1000)` should be sufficient.
+- In near-real-time mode (which is turned on by default), `IndexManager.getDirectoryReader()` and `IndexManager.getIndexSeacher()` always return
+the most up-to-date instances. If near-real-time mode is too costly for application (which is a rare case, however), application can turn
+off near-real-time mode (`IndexManager.setNrtIndexSearcher(false)`) and enable background refresh of `IndexSearcher` (and `DirectoryReader`) via
+`IndexManager.setBackgroundRefreshIndexSearcherPeriodMs(...)`.
+- Warning: if both _near-real-time mode_ and _background IndexSeacher refresh_ are turned off, all index changes (document added/deleted/updated)
+occurred after `IndexManager.init()` is called will not be read.
+- After `IndexManager.init()` is invoked:
+  - `setIndexWriterConfig(IndexWriterConfig)` will NOT take effect and a warning message will be logged.
+  - `setScheduledExecutorService(ScheduledExecutorService)` will NOT take effect and a warning message will be logged.
+  - `setBackgroundRefreshIndexSearcherPeriodMs(long)` will take effect on-the-fly.
+  - `setBackgroundCommitIndexPeriodMs(long)` will take effect on-the-fly.
+  - `setNrtIndexSearcher(boolean)` will take effect on-the-fly.
+
 
 ### `RedisDirectory`
 

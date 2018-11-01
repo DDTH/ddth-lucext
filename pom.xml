@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -52,6 +54,7 @@
 		<version.slf4j>1.7.25</version.slf4j>
 		<version.jedis>2.9.0</version.jedis>
 		<version.cassandra_driver>3.6.0</version.cassandra_driver>
+		<version.javassist>3.23.1-GA</version.javassist>
 		<version.ddth_commons>0.9.1.8</version.ddth_commons>
 		<version.ddth_cql_utils>0.4.0.1</version.ddth_cql_utils>
 		<version.ddth_cache_adapter>0.6.3.3</version.ddth_cache_adapter>
@@ -126,6 +129,11 @@
 			<groupId>com.github.ddth</groupId>
 			<artifactId>ddth-cache-adapter-core</artifactId>
 			<version>${version.ddth_cache_adapter}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.javassist</groupId>
+			<artifactId>javassist</artifactId>
+			<version>${version.javassist}</version>
 		</dependency>
 
 		<!-- for RedisDirectory -->

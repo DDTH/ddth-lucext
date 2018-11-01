@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>com.github.ddth</groupId>
 		<artifactId>ddth-lucext</artifactId>
-		<version>0.1.1-SNAPSHOT</version>
+		<version>0.2.0</version>
 	</parent>
 
 	<artifactId>ddth-lucext-core</artifactId>

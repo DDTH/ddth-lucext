@@ -10,7 +10,7 @@
 
 	<!-- <groupId>com.github.ddth</groupId> -->
 	<artifactId>ddth-lucext</artifactId>
-	<version>0.2.0</version>
+	<version>0.2.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>ddth-lucext</name>

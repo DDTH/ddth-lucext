@@ -213,6 +213,10 @@ Directory DIR = new CassandraDirectory(sm)
 (See more about `ICacheManager` [here](https://github.com/DDTH/ddth-cache-adapter))
 
 
+### Examples
+
+See more examples [here](./ddth-lucext-core/src/test/java/com/github/ddth/lucext/qnd).
+
 ## License
 
 See LICENSE.txt for details. Copyright (c) 2018 Thanh Ba Nguyen.

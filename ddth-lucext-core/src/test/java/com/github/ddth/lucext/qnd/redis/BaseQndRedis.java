@@ -4,7 +4,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.ddth.commons.redis.JedisConnector;
 import com.github.ddth.lucext.directory.LucextDirectory;
-import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
+import com.github.ddth.lucext.directory.redis.RedisDirectory;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -29,7 +29,7 @@ public class BaseQndRedis {
             logger.setLevel(level);
         }
         {
-            Logger logger = (Logger) LoggerFactory.getLogger(CassandraDirectory.class);
+            Logger logger = (Logger) LoggerFactory.getLogger(RedisDirectory.class);
             logger.setLevel(level);
         }
         {

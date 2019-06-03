@@ -1,49 +1,61 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>com.github.ddth</groupId>
-		<artifactId>ddth-lucext</artifactId>
-		<version>0.2.1-SNAPSHOT</version>
-	</parent>
+    <parent>
+        <groupId>com.github.ddth</groupId>
+        <artifactId>ddth-lucext</artifactId>
+        <version>0.2.1-SNAPSHOT</version>
+    </parent>
 
-	<artifactId>ddth-lucext-cassandra</artifactId>
-	<version>0.2.1-SNAPSHOT</version>
-	<packaging>pom</packaging>
+    <artifactId>ddth-lucext-cassandra</artifactId>
+    <packaging>pom</packaging>
 
-	<name>ddth-lucext-cassandra</name>
-	<description>DDTH's utilities and extensions for Apache Lucene</description>
-	<url>https://github.com/DDTH/ddth-lucext</url>
+    <name>ddth-lucext-cassandra</name>
+    <description>DDTH's utilities and extensions for Apache Lucene</description>
+    <url>https://github.com/DDTH/ddth-lucext</url>
 
-	<developers>
-		<developer>
-			<id>btnguyen2k</id>
-			<name>Thanh Ba Nguyen</name>
-			<email>btnguyen2k@gmail.com</email>
-		</developer>
-	</developers>
+    <developers>
+        <developer>
+            <id>btnguyen2k</id>
+            <name>Thanh Ba Nguyen</name>
+            <email>btnguyen2k@gmail.com</email>
+        </developer>
+    </developers>
 
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-	</properties>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
-	<dependencies>
-		<dependency>
-			<groupId>com.github.ddth</groupId>
-			<artifactId>ddth-lucext-core</artifactId>
-			<version>0.2.1-SNAPSHOT</version>
-		</dependency>
+    <dependencies>
+        <dependency>
+            <groupId>com.github.ddth</groupId>
+            <artifactId>ddth-lucext-core</artifactId>
+            <version>0.2.1-SNAPSHOT</version>
+        </dependency>
 
-		<!-- for CassandraDirectory -->
-		<dependency>
-			<groupId>com.github.ddth</groupId>
-			<artifactId>ddth-cql-utils</artifactId>
-			<version>${version.ddth_cql_utils}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.datastax.cassandra</groupId>
-			<artifactId>cassandra-driver-core</artifactId>
-			<version>${version.cassandra_driver}</version>
-		</dependency>
-	</dependencies>
+        <!-- for CassandraDirectory -->
+        <dependency>
+            <groupId>com.github.ddth</groupId>
+            <artifactId>ddth-cql-utils</artifactId>
+            <version>${version.ddth_cql_utils}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.datastax.oss</groupId>
+            <artifactId>java-driver-core</artifactId>
+            <version>${version.datastax-oss}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.datastax.oss</groupId>
+            <artifactId>java-driver-query-builder</artifactId>
+            <version>${version.datastax-oss}</version>
+            <optional>true</optional>
+        </dependency>
+        <!-- <dependency> <groupId>com.datastax.dse</groupId> <artifactId>dse-java-driver-core</artifactId>
+            <version>${version.datastax-dse}</version> <optional>true</optional> </dependency>
+            <dependency> <groupId>com.datastax.dse</groupId> <artifactId>dse-java-driver-query-builder</artifactId>
+            <version>${version.datastax-dse}</version> <optional>true</optional> </dependency> -->
+    </dependencies>
 </project>

@@ -1,14 +1,15 @@
 package com.github.ddth.lucext.directory;
 
-import java.util.Map;
-
 import com.github.ddth.commons.utils.MapUtils;
 import com.github.ddth.commons.utils.SerializationUtils;
 import com.github.ddth.lucext.utils.IdUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+
 /**
  * File metadata info.
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0
  */
@@ -33,7 +34,8 @@ public class FileInfo implements Cloneable {
         if (data == null || data.length <= 8) {
             return null;
         }
-        Map<String, Object> dataMap = SerializationUtils.fromByteArray(data, Map.class);
+        Map<String, Object> dataMap = SerializationUtils
+                .fromJsonString(new String(data, StandardCharsets.UTF_8), Map.class);
         if (dataMap == null) {
             return null;
         }
@@ -85,7 +87,7 @@ public class FileInfo implements Cloneable {
 
     /**
      * Export this file metadata info as a map.
-     * 
+     *
      * @return
      */
     public Map<String, Object> asMap() {
@@ -94,7 +96,7 @@ public class FileInfo implements Cloneable {
 
     /**
      * Import file metadata info from a map (created via {@link #asMap()}.
-     * 
+     *
      * @param data
      * @return
      */
@@ -108,11 +110,11 @@ public class FileInfo implements Cloneable {
 
     /**
      * Export this file metadata info as a byte array.
-     * 
+     *
      * @return
      */
     public byte[] asBytes() {
         Map<String, Object> data = asMap();
-        return data != null ? SerializationUtils.toByteArray(data) : null;
+        return data != null ? SerializationUtils.toJsonString(data).getBytes(StandardCharsets.UTF_8) : null;
     }
 }

@@ -55,8 +55,7 @@ public class BaseQndCassandra {
 
     protected static SessionManager getSessionManager() {
         SessionManager sm = new SessionManager();
-        sm.setDefaultHostsAndPorts("localhost").setDefaultUsername(null).setDefaultPassword(null)
-                .setDefaultKeyspace(null).init();
+        sm.setDefaultHostsAndPorts("localhost").setDefaultKeyspace(null).init();
         return sm;
     }
 

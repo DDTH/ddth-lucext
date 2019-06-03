@@ -1,13 +1,6 @@
 package com.github.ddth.lucext.directory;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
+import javassist.util.proxy.ProxyFactory;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -16,11 +9,18 @@ import org.apache.lucene.store.Directory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javassist.util.proxy.ProxyFactory;
+import java.io.Closeable;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Manage index-objects (IndexWriter, IndexSearcher, etc).
- * 
+ *
  * <ul>
  * <li>Automatically refresh {@link IndexSearcher} in the background. See
  * {@link #getBackgroundRefreshIndexSearcherPeriodMs()}.</li>
@@ -61,7 +61,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Get the associated {@link Directory}.
-     * 
+     *
      * @return
      */
     protected Directory getDirectory() {
@@ -70,7 +70,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Getter for {@link #indexWriterConfig}.
-     * 
+     *
      * @return
      */
     public IndexWriterConfig getIndexWriterConfig() {
@@ -79,7 +79,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Setter for {@link #indexWriterConfig}.
-     * 
+     *
      * @param iwc
      * @return
      */
@@ -87,14 +87,14 @@ public class IndexManager implements AutoCloseable {
         if (indexWriter == null) {
             this.indexWriterConfig = iwc;
         } else {
-            LOGGER.warn("IndexManager has been initalized, cannot change this configuration!");
+            LOGGER.warn("IndexManager has been initialized, cannot change this configuration.");
         }
         return this;
     }
 
     /**
      * The {@link ScheduledExecutorService} for internal scheduled jobs.
-     * 
+     *
      * @return
      */
     protected ScheduledExecutorService getScheduledExecutorService() {
@@ -103,7 +103,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * The {@link ScheduledExecutorService} for internal scheduled jobs.
-     * 
+     *
      * @param ses
      * @return
      */
@@ -115,7 +115,7 @@ public class IndexManager implements AutoCloseable {
             }
             this.ses = ses;
         } else {
-            LOGGER.warn("IndexManager has been initalized, cannot change this configuration!");
+            LOGGER.warn("IndexManager has been initialized, cannot change this configuration.");
         }
         return this;
     }
@@ -123,41 +123,43 @@ public class IndexManager implements AutoCloseable {
     /**
      * If set to a positive value, the {@link IndexSearcher} will be periodically refreshed in a
      * background thread. Default value {@link #DEFAULT_BACKGROUND_REFRESH_INDEXSEARCHER_PERIOD_MS}.
-     * 
+     *
      * @return
      */
     public long getBackgroundRefreshIndexSearcherPeriodMs() {
         return backgroundRefreshIndexSearcherPeriodMs;
     }
 
+    protected void initBackgroundRefreshIndexSearcher() {
+        if (backgroundRefreshIndexSearcherPeriodMs > 0) {
+            backgroundRefreshIndexSearcher = ses.scheduleWithFixedDelay(() -> {
+                try {
+                    indexSearcher = upToDateIndexSeacher();
+                } catch (IOException e) {
+                    LOGGER.error(e.getMessage(), e);
+                }
+            }, 1000, backgroundRefreshIndexSearcherPeriodMs, TimeUnit.MILLISECONDS);
+        } else if (!isNrtIndexSearcher()) {
+            LOGGER.warn(
+                    "Background IndexSearcher is not configured and NRT mode is off, IndexSearcher will not be able to read new data.");
+        }
+    }
+
     /**
      * If set to a positive value, the {@link IndexSearcher} will be periodically refreshed in a
      * background thread. Default value {@link #DEFAULT_BACKGROUND_REFRESH_INDEXSEARCHER_PERIOD_MS}.
-     * 
-     * @param indexSeacherRefreshPeriodMs
+     *
+     * @param backgroundRefreshIndexSearcherPeriodMs
      * @return
      */
-    public IndexManager setBackgroundRefreshIndexSearcherPeriodMs(
-            long backgroundRefreshIndexSearcherPeriodMs) {
+    public IndexManager setBackgroundRefreshIndexSearcherPeriodMs(long backgroundRefreshIndexSearcherPeriodMs) {
         long oldValue = this.backgroundRefreshIndexSearcherPeriodMs;
         this.backgroundRefreshIndexSearcherPeriodMs = backgroundRefreshIndexSearcherPeriodMs;
-        if (oldValue != backgroundRefreshIndexSearcherPeriodMs && indexWriter != null
-                && ses != null) {
+        if (oldValue != backgroundRefreshIndexSearcherPeriodMs && indexWriter != null && ses != null) {
             if (backgroundRefreshIndexSearcher != null) {
                 backgroundRefreshIndexSearcher.cancel(true);
             }
-            if (backgroundRefreshIndexSearcherPeriodMs > 0) {
-                backgroundRefreshIndexSearcher = ses.scheduleWithFixedDelay(() -> {
-                    try {
-                        indexSearcher = upToDateIndexSeacher();
-                    } catch (IOException e) {
-                        LOGGER.error(e.getMessage(), e);
-                    }
-                }, 1000, backgroundRefreshIndexSearcherPeriodMs, TimeUnit.MILLISECONDS);
-            } else if (!isNrtIndexSearcher()) {
-                LOGGER.warn(
-                        "Background IndexSearcher is not configured and NRT mode is off, IndexSearcher will not be able to read new data!");
-            }
+            initBackgroundRefreshIndexSearcher();
         }
         return this;
     }
@@ -165,18 +167,30 @@ public class IndexManager implements AutoCloseable {
     /**
      * If set to a positive value, the {@link IndexWriter} will be periodically committed in a
      * background thread. Default value {@link #DEFAULT_BACKGROUND_COMMIT_INDEX_PERIOD_MS}.
-     * 
+     *
      * @return
      */
     public long getBackgroundCommitIndexPeriodMs() {
         return backgroundCommitIndexPeriodMs;
     }
 
+    protected void initBackgroundCommitIndex() {
+        if (backgroundCommitIndexPeriodMs > 0) {
+            backgroundCommitIndex = ses.scheduleWithFixedDelay(() -> {
+                try {
+                    indexWriter.commit();
+                } catch (IOException e) {
+                    LOGGER.error(e.getMessage(), e);
+                }
+            }, 1000, backgroundCommitIndexPeriodMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
     /**
      * If set to a positive value, the {@link IndexWriter} will be periodically committed in a
      * background thread. Default value {@link #DEFAULT_BACKGROUND_COMMIT_INDEX_PERIOD_MS}.
-     * 
-     * @param indexSeacherRefreshPeriodMs
+     *
+     * @param backgroundCommitIndexPeriodMs
      * @return
      */
     public IndexManager setBackgroundCommitIndexPeriodMs(long backgroundCommitIndexPeriodMs) {
@@ -186,15 +200,7 @@ public class IndexManager implements AutoCloseable {
             if (backgroundCommitIndex != null) {
                 backgroundCommitIndex.cancel(true);
             }
-            if (backgroundCommitIndexPeriodMs > 0) {
-                backgroundCommitIndex = ses.scheduleWithFixedDelay(() -> {
-                    try {
-                        indexWriter.commit();
-                    } catch (IOException e) {
-                        LOGGER.error(e.getMessage(), e);
-                    }
-                }, 1000, backgroundCommitIndexPeriodMs, TimeUnit.MILLISECONDS);
-            }
+            initBackgroundCommitIndex();
         }
         return this;
     }
@@ -204,7 +210,7 @@ public class IndexManager implements AutoCloseable {
      * index is changed (document add, delete, update), the {@link DirectoryReader} and
      * {@link IndexSearcher} are refreshed so that directory-reader and
      * index-searcher (almost) always reads the latest data.
-     * 
+     *
      * @return
      */
     public boolean isNrtIndexSearcher() {
@@ -216,7 +222,7 @@ public class IndexManager implements AutoCloseable {
      * index is changed (document add, delete, update), the {@link DirectoryReader} and
      * {@link IndexSearcher} are refreshed so that directory-reader and
      * index-searcher (almost) always reads the latest data.
-     * 
+     *
      * @param nrtIndexSearcher
      * @return
      */
@@ -224,12 +230,27 @@ public class IndexManager implements AutoCloseable {
         this.nrtIndexSearcher = nrtIndexSearcher;
         if (indexWriter != null && backgroundRefreshIndexSearcher == null && !nrtIndexSearcher) {
             LOGGER.warn(
-                    "Background IndexSearcher is not configured and NRT mode is off, IndexSearcher will not be able to read new data!");
+                    "Background IndexSearcher is not configured and NRT mode is off, IndexSearcher will not be able to read new data.");
         }
         return this;
     }
 
     private ScheduledFuture<?> backgroundRefreshIndexSearcher, backgroundCommitIndex;
+
+    private void createIndexObjects() throws IOException {
+        if (indexWriterConfig == null) {
+            indexWriterConfig = new IndexWriterConfig();
+            indexWriterConfig.setCommitOnClose(true);
+        }
+        indexWriter = createIndexWriter(directory, indexWriterConfig);
+        directoryReader = createDirectoryReaderIfChanged(directoryReader, indexWriter);
+        indexSearcher = createIndexSearcher(directoryReader);
+    }
+
+    private void initBackgroundTasks() {
+        initBackgroundRefreshIndexSearcher();
+        initBackgroundCommitIndex();
+    }
 
     /**
      * Initializing method.
@@ -237,45 +258,30 @@ public class IndexManager implements AutoCloseable {
      * @return
      * @throws IOException
      */
-    synchronized public IndexManager init() throws IOException {
+    public IndexManager init() throws IOException {
+        if (ses == null) {
+            ses = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+            myOwnScheduledExecutorService = true;
+        }
         if (indexWriter == null) {
-            if (indexWriterConfig == null) {
-                indexWriterConfig = new IndexWriterConfig();
-                indexWriterConfig.setCommitOnClose(true);
-            }
-            indexWriter = createIndexWriter(directory, indexWriterConfig);
-            directoryReader = createDirectoryReader(null, indexWriter);
-            indexSearcher = createIndexSearcher(directoryReader);
-
-            if (ses == null) {
-                ses = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
-                myOwnScheduledExecutorService = true;
-            }
-
-            if (backgroundRefreshIndexSearcherPeriodMs > 0) {
-                backgroundRefreshIndexSearcher = ses.scheduleWithFixedDelay(() -> {
-                    try {
-                        indexSearcher = upToDateIndexSeacher();
-                    } catch (IOException e) {
-                        LOGGER.error(e.getMessage(), e);
-                    }
-                }, 1000, backgroundRefreshIndexSearcherPeriodMs, TimeUnit.MILLISECONDS);
-            } else if (!isNrtIndexSearcher()) {
-                LOGGER.warn(
-                        "Background IndexSearcher is not configured and NRT mode is off, IndexSearcher will not be able to read new data!");
-            }
-
-            if (backgroundCommitIndexPeriodMs > 0) {
-                backgroundCommitIndex = ses.scheduleWithFixedDelay(() -> {
-                    try {
-                        indexWriter.commit();
-                    } catch (IOException e) {
-                        LOGGER.error(e.getMessage(), e);
-                    }
-                }, 1000, backgroundCommitIndexPeriodMs, TimeUnit.MILLISECONDS);
-            }
+            createIndexObjects();
+            initBackgroundTasks();
         }
         return this;
+    }
+
+    private void closeObjs(Closeable... objList) {
+        if (objList != null) {
+            for (Closeable obj : objList) {
+                try {
+                    if (obj != null) {
+                        obj.close();
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn(e.getMessage(), e);
+                }
+            }
+        }
     }
 
     /**
@@ -291,26 +297,9 @@ public class IndexManager implements AutoCloseable {
                 ses = null;
             }
         }
-
-        if (directoryReader != null) {
-            try {
-                directoryReader.close();
-            } catch (Exception e) {
-                LOGGER.warn(e.getMessage(), e);
-            } finally {
-                directoryReader = null;
-            }
-        }
-
-        if (indexWriter != null) {
-            try {
-                indexWriter.close();
-            } catch (Exception e) {
-                LOGGER.warn(e.getMessage(), e);
-            } finally {
-                indexWriter = null;
-            }
-        }
+        closeObjs(indexWriter, directory);
+        indexWriter = null;
+        directory = null;
     }
 
     /**
@@ -322,29 +311,27 @@ public class IndexManager implements AutoCloseable {
     }
 
     /*----------------------------------------------------------------------*/
-    private IndexWriter createIndexWriter(Directory directory, IndexWriterConfig iwc)
-            throws IOException {
+    private IndexWriter createIndexWriter(Directory directory, IndexWriterConfig iwc) {
         ProxyFactory pf = new ProxyFactory();
         pf.setSuperclass(IndexWriter.class);
         try {
-            IndexWriter indexWriter = (IndexWriter) pf.create(
-                    new Class<?>[] { Directory.class, IndexWriterConfig.class },
-                    new Object[] { directory, iwc }, (self, thisMethod, proceed, args) -> {
-                        try {
-                            return proceed.invoke(self, args);
-                        } finally {
-                            String name = thisMethod.getName();
-                            if (name.startsWith("addDocument") || name.startsWith("addIndex")
-                                    || name.startsWith("deleteDocument")
-                                    || name.startsWith("deleteAll") || name.startsWith("updateDoc")
-                                    || (name.startsWith("update") && name.endsWith("DocValue"))) {
-                                markIndexChanged();
-                            }
-                        }
-                    });
+            IndexWriter indexWriter = (IndexWriter) pf
+                    .create(new Class<?>[] { Directory.class, IndexWriterConfig.class },
+                            new Object[] { directory, iwc }, (self, thisMethod, proceed, args) -> {
+                                try {
+                                    return proceed.invoke(self, args);
+                                } finally {
+                                    String name = thisMethod.getName();
+                                    if (name.startsWith("addDocument") || name.startsWith("addIndex") || name
+                                            .startsWith("deleteDocument") || name.startsWith("deleteAll") || name
+                                            .startsWith("updateDoc") || (name.startsWith("update") && name
+                                            .endsWith("DocValue"))) {
+                                        markIndexChanged();
+                                    }
+                                }
+                            });
             return indexWriter;
-        } catch (NoSuchMethodException | IllegalArgumentException | InstantiationException
-                | IllegalAccessException | InvocationTargetException e) {
+        } catch (NoSuchMethodException | IllegalArgumentException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
     }
@@ -352,18 +339,18 @@ public class IndexManager implements AutoCloseable {
     /**
      * This method creates new {@link DirectoryReader} if the index has changed, otherwise the old
      * one is returned.
-     * 
+     *
      * @param oldDirectoryReader
      * @param indexWriter
      * @return
      * @throws IOException
      */
     @SuppressWarnings({ "resource" })
-    private DirectoryReader createDirectoryReader(DirectoryReader oldDirectoryReader,
-            IndexWriter indexWriter) throws IOException {
-        DirectoryReader dirReader = oldDirectoryReader != null
-                ? DirectoryReader.openIfChanged(oldDirectoryReader, indexWriter)
-                : DirectoryReader.open(indexWriter);
+    private DirectoryReader createDirectoryReaderIfChanged(DirectoryReader oldDirectoryReader, IndexWriter indexWriter)
+            throws IOException {
+        DirectoryReader dirReader = oldDirectoryReader != null ?
+                DirectoryReader.openIfChanged(oldDirectoryReader, indexWriter) :
+                DirectoryReader.open(indexWriter);
         if (dirReader == null) {
             dirReader = oldDirectoryReader;
         }
@@ -376,7 +363,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Get the associated {@link DirectoryReader}.
-     * 
+     *
      * @return
      * @throws IOException
      */
@@ -386,7 +373,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Get the associated {@link IndexSearcher}.
-     * 
+     *
      * @return
      * @throws IOException
      */
@@ -396,7 +383,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Get the associated {@link IndexWriter}.
-     * 
+     *
      * @return
      */
     public IndexWriter getIndexWriter() {
@@ -408,7 +395,7 @@ public class IndexManager implements AutoCloseable {
 
     /**
      * Mark that index has changed.
-     * 
+     *
      * @return
      */
     public IndexManager markIndexChanged() {
@@ -419,7 +406,7 @@ public class IndexManager implements AutoCloseable {
     /**
      * Check if index has changed and {@link DirectoryReader} and {@link IndexSearcher} has not been
      * refreshed.
-     * 
+     *
      * @return
      */
     public boolean isIndexChanged() {
@@ -438,12 +425,11 @@ public class IndexManager implements AutoCloseable {
     synchronized private DirectoryReader upToDateDirectoryReader() throws IOException {
         long changeToken = changeCounter.get();
         DirectoryReader oldDirReader = directoryReader;
-        directoryReader = createDirectoryReader(oldDirReader, indexWriter);
+        directoryReader = createDirectoryReaderIfChanged(oldDirReader, indexWriter);
         if (oldDirReader != null && oldDirReader != directoryReader) {
             oldDirReader.close();
         }
         changeCounter.compareAndSet(changeToken, 0);
         return directoryReader;
     }
-
 }

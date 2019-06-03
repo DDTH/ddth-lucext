@@ -1,35 +1,28 @@
 package com.github.ddth.lucext.qnd.cassandra;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.concurrent.atomic.AtomicLong;
-
+import ch.qos.logback.classic.Level;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.config.ProgrammaticDriverConfigLoaderBuilder;
+import com.github.ddth.cacheadapter.ICacheFactory;
+import com.github.ddth.cql.SessionManager;
+import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.Term;
 
-import com.github.ddth.cacheadapter.ICacheFactory;
-import com.github.ddth.cql.SessionManager;
-import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
-
-import ch.qos.logback.classic.Level;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class QndCassandraIndexDirectory extends BaseQndCassandra {
 
@@ -40,17 +33,22 @@ public class QndCassandraIndexDirectory extends BaseQndCassandra {
     public static void main(String[] args) throws Exception {
         initLoggers(Level.INFO);
 
+        ProgrammaticDriverConfigLoaderBuilder dclBuilder = DriverConfigLoader.programmaticBuilder();
+        dclBuilder.withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_USER_NAME, "cassandra")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_PASSWORD, "cassandra");
         try (SessionManager sm = getSessionManager()) {
-            sm.executeNonSelect(
-                    "CREATE KEYSPACE IF NOT EXISTS test WITH REPLICATION={'class' : 'SimpleStrategy', 'replication_factor' : 1}");
-            sm.executeNonSelect(
-                    "DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_FILEDATA);
-            sm.executeNonSelect(
-                    "DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_METADATA);
+            sm.setConfigLoader(dclBuilder.build());
+            sm.setDefaultHostsAndPorts("localhost");
 
-            sm.executeNonSelect("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_METADATA
+            sm.execute(
+                    "CREATE KEYSPACE IF NOT EXISTS test WITH REPLICATION={'class' : 'SimpleStrategy', 'replication_factor' : 1}");
+            sm.execute("DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_FILEDATA);
+            sm.execute("DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_METADATA);
+
+            sm.execute("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_METADATA
                     + " (name VARCHAR, size BIGINT, id VARCHAR, PRIMARY KEY (name))");
-            sm.executeNonSelect("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_FILEDATA
+            sm.execute("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_FILEDATA
                     + " (id VARCHAR, blocknum INT, blockdata BLOB, PRIMARY KEY (id, blocknum))");
             Thread.sleep(1000);
 
@@ -83,8 +81,7 @@ public class QndCassandraIndexDirectory extends BaseQndCassandra {
         if (Files.isDirectory(path)) {
             Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
                 @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                        throws IOException {
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                     try {
                         indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
                     } catch (IOException ignore) {
@@ -100,9 +97,8 @@ public class QndCassandraIndexDirectory extends BaseQndCassandra {
 
     static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
         String filename = file.getFileName().toString().toLowerCase();
-        if (!filename.endsWith(".java") && !filename.endsWith(".properties")
-                && !filename.endsWith(".xml") && !filename.endsWith(".html")
-                && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
+        if (!filename.endsWith(".java") && !filename.endsWith(".properties") && !filename.endsWith(".xml") && !filename
+                .endsWith(".html") && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
             return;
         }
 

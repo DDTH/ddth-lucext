@@ -18,6 +18,9 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.config.ProgrammaticDriverConfigLoaderBuilder;
 import com.github.ddth.cacheadapter.ICacheFactory;
 import com.github.ddth.cql.SessionManager;
 import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
@@ -29,17 +32,23 @@ public class QndCassandraIndexAndSearch extends BaseQndCassandra {
     public static void main(String[] args) throws Exception {
         initLoggers(Level.INFO);
 
+        ProgrammaticDriverConfigLoaderBuilder dclBuilder = DriverConfigLoader.programmaticBuilder();
+        dclBuilder.withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_USER_NAME, "cassandra")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_PASSWORD, "cassandra");
         try (SessionManager sm = getSessionManager()) {
-            sm.executeNonSelect(
+            sm.setConfigLoader(dclBuilder.build());
+            sm.setDefaultHostsAndPorts("localhost");
+            sm.init();
+            
+            sm.execute(
                     "CREATE KEYSPACE IF NOT EXISTS test WITH REPLICATION={'class' : 'SimpleStrategy', 'replication_factor' : 1}");
-            sm.executeNonSelect(
-                    "DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_FILEDATA);
-            sm.executeNonSelect(
-                    "DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_METADATA);
+            sm.execute("DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_FILEDATA);
+            sm.execute("DROP TABLE IF EXISTS test." + CassandraDirectory.DEFAULT_TBL_METADATA);
 
-            sm.executeNonSelect("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_METADATA
+            sm.execute("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_METADATA
                     + " (name VARCHAR, size BIGINT, id VARCHAR, PRIMARY KEY (name))");
-            sm.executeNonSelect("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_FILEDATA
+            sm.execute("CREATE TABLE test." + CassandraDirectory.DEFAULT_TBL_FILEDATA
                     + " (id VARCHAR, blocknum INT, blockdata BLOB, PRIMARY KEY (id, blocknum))");
             Thread.sleep(1000);
 

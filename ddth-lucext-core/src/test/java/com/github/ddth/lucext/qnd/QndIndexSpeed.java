@@ -1,9 +1,6 @@
 package com.github.ddth.lucext.qnd;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
-
+import com.github.ddth.lucext.directory.IndexManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field.Store;
@@ -15,7 +12,9 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import com.github.ddth.lucext.directory.IndexManager;
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class QndIndexSpeed {
 
@@ -26,8 +25,8 @@ public class QndIndexSpeed {
 
         try (Directory dir = FSDirectory.open(temp.toPath())) {
             try (IndexManager indexManage = new IndexManager(dir)) {
-                indexManage.setBackgroundCommitIndexPeriodMs(0)
-                        .setBackgroundRefreshIndexSearcherPeriodMs(0).setNrtIndexSearcher(true);
+                indexManage.setBackgroundCommitIndexPeriodMs(0).setBackgroundRefreshIndexSearcherPeriodMs(0)
+                        .setNrtIndexSearcher(true);
                 indexManage.init();
 
                 long start = System.currentTimeMillis();
@@ -60,7 +59,7 @@ public class QndIndexSpeed {
 
                 long d = System.currentTimeMillis() - start;
                 System.out.println("Write " + counter.get() + " items in " + d + " ms ("
-                        + Math.round(counter.get() * 1000.0 / d) + " items/s)");
+                        + Math.round(counter.get() * 10000.0 / d) / 10.0 + " items/s)");
 
                 IndexSearcher is = indexManage.getIndexSearcher();
                 TermQuery query = new TermQuery(new Term("class", "test"));

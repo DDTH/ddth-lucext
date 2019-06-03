@@ -9,7 +9,6 @@ import org.apache.lucene.search.Query;
  * @since 0.3.0
  */
 public class LucextUtils {
-
     /**
      * Build the query to search for an exact term.
      * 

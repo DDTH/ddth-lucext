@@ -1,36 +1,27 @@
 package com.github.ddth.lucext.qnd.redis;
 
+import ch.qos.logback.classic.Level;
+import com.github.ddth.commons.redis.JedisConnector;
+import com.github.ddth.lucext.directory.redis.RedisDirectory;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.*;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.Term;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.index.Term;
-
-import com.github.ddth.commons.redis.JedisConnector;
-import com.github.ddth.lucext.directory.redis.RedisDirectory;
-
-import redis.clients.jedis.Jedis;
 
 public class QndRedisIndexDirectoryMultiThread extends BaseQndRedis {
 
@@ -40,37 +31,40 @@ public class QndRedisIndexDirectoryMultiThread extends BaseQndRedis {
     private static final ExecutorService ES = Executors.newFixedThreadPool(16);
 
     public static void main(String[] args) throws Exception {
-        JedisConnector jc = getJedisConnector();
-        try (Jedis jedis = jc.getJedis()) {
-            jedis.flushAll();
-        }
+        initLoggers(Level.INFO);
 
-        try (RedisDirectory DIR = new RedisDirectory(jc)) {
-            DIR.init();
-
-            long t1 = System.currentTimeMillis();
-
-            Analyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-            iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-            IndexWriter iw = new IndexWriter(DIR, iwc);
-
-            Path docDir = Paths.get("./");
-            indexDocs(iw, docDir);
-
-            while (JOBS_DONE.get() < MAX_ITEMS) {
-                Thread.sleep(1);
+        try (JedisConnector jc = getJedisConnector()) {
+            try (Jedis jedis = jc.getJedis()) {
+                jedis.flushAll();
             }
 
-            iw.commit();
-            iw.forceMergeDeletes();
-            iw.deleteUnusedFiles();
-            iw.commit();
-            iw.close();
+            try (RedisDirectory DIR = new RedisDirectory(jc)) {
+                DIR.init();
 
-            long t2 = System.currentTimeMillis();
-            System.out.println("Finished indexing in " + (t2 - t1) / 1000.0 + " sec");
-            ES.shutdown();
+                long t1 = System.currentTimeMillis();
+
+                Analyzer analyzer = new StandardAnalyzer();
+                IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+                iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+                IndexWriter iw = new IndexWriter(DIR, iwc);
+
+                Path docDir = Paths.get("./");
+                indexDocs(iw, docDir);
+
+                while (JOBS_DONE.get() < MAX_ITEMS) {
+                    Thread.sleep(1);
+                }
+
+                iw.commit();
+                iw.forceMergeDeletes();
+                iw.deleteUnusedFiles();
+                iw.commit();
+                iw.close();
+
+                long t2 = System.currentTimeMillis();
+                System.out.println("Finished indexing in " + (t2 - t1) / 1000.0 + " sec");
+                ES.shutdown();
+            }
         }
     }
 
@@ -78,8 +72,7 @@ public class QndRedisIndexDirectoryMultiThread extends BaseQndRedis {
         if (Files.isDirectory(path)) {
             Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
                 @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                        throws IOException {
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                     try {
                         indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
                     } catch (IOException ignore) {
@@ -95,9 +88,8 @@ public class QndRedisIndexDirectoryMultiThread extends BaseQndRedis {
 
     static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
         String filename = file.getFileName().toString().toLowerCase();
-        if (!filename.endsWith(".java") && !filename.endsWith(".properties")
-                && !filename.endsWith(".xml") && !filename.endsWith(".html")
-                && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
+        if (!filename.endsWith(".java") && !filename.endsWith(".properties") && !filename.endsWith(".xml") && !filename
+                .endsWith(".html") && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
             return;
         }
 
@@ -118,8 +110,8 @@ public class QndRedisIndexDirectoryMultiThread extends BaseQndRedis {
 
                     doc.add(new LongPoint("modified", lastModified));
 
-                    doc.add(new TextField("contents", new BufferedReader(
-                            new InputStreamReader(stream, StandardCharsets.UTF_8))));
+                    doc.add(new TextField("contents",
+                            new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))));
 
                     if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
                         System.out.println("adding " + file);

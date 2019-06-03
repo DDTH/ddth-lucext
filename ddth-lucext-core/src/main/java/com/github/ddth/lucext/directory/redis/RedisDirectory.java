@@ -35,7 +35,7 @@ import redis.clients.jedis.Pipeline;
  * <li>Data of each file is stored in a Redis hash, where:
  * <ul>
  * <li>File's id is hash name.</li>
- * <li>File's data is divided into {@link #BLOCK_SIZE}-byte chunks. Data of each chunk is stored
+ * <li>File's data is divided into {@link #getBlockSize()}-byte chunks. Data of each chunk is stored
  * in one hash's field, keyed by chunk's index (0, 1, 2 and so on).</li>
  * </ul>
  * </li>
@@ -202,7 +202,7 @@ public class RedisDirectory extends LucextDirectory {
      * {@inheritDoc}
      */
     @Override
-    public void deleteFile(String name) throws IOException {
+    public void deleteFile(String name) {
         FileInfo fileInfo = getFileInfo(name);
         if (fileInfo != null) {
             if (LOGGER.isTraceEnabled()) {

@@ -7,10 +7,12 @@ DDTH's utilities and extensions for [Apache Lucene](http://lucene.apache.org).
 Project home:
 [https://github.com/DDTH/ddth-lucext](https://github.com/DDTH/ddth-lucext)
 
+**`ddth-lucext` requires Java 11+ since v1.0.0, for Java 8, use v0.x.y**
+
 
 ## Installation
 
-Latest release version: `0.2.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
+Latest release version: `1.0.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 Maven dependency: if only a sub-set of `ddth-lucext` functionality is used, choose the corresponding
 dependency artifact(s) to reduce the number of unused jar files.
@@ -21,7 +23,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-lucext-core</artifactId>
-    <version>0.2.0</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -31,7 +33,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-lucext-cassandra</artifactId>
-    <version>0.2.0</version>
+    <version>1.0.0</version>
     <type>pom</type>
 </dependency>
 ```
@@ -42,7 +44,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-lucext-redis</artifactId>
-    <version>0.2.0</version>
+    <version>1.0.0</version>
     <type>pom</type>
 </dependency>
 ```
@@ -55,7 +57,11 @@ dependency artifact(s) to reduce the number of unused jar files.
 Help to manage index-objects (`IndexWriter`, `IndexSearcher` and `DirectoryReader`) associated with a `Directory`.
 
 ```java
-// create an IndexManager instance
+import com.github.ddth.lucext.directory.IndexManager;
+
+// first open a Lucene directory
+org.apache.lucene.store.Directory directory = FSDirectory.open("./temp");
+// then create an IndexManager instance
 IndexManager indexManager = new IndexManager(directory);
 
 // customize the IndexManager
@@ -78,8 +84,6 @@ indexWriter.addDocument(...);
 indexWriter.updateDocument(...);
 indexWriter.removeDocument(...);
 indexWriter.commit();
-// (optionally) notify IndexManager that the index has changed due to document adding/removing/updating
-//indexManager.markIndexChanged();
 
 IndexSearcher indexSearcher = indexManager.getIndexSearcher();
 indexSearcher.search(...);
@@ -116,6 +120,7 @@ Store Lucene's data in [Redis](https://redis.io).
 ```java
 import com.github.ddth.commons.redis.*;
 import com.github.ddth.lucext.directory.redis.*;
+import redis.clients.jedis.*;
 
 // 1. create a JedisConnector instance
 JedisConnector jc = new JedisConnector();
@@ -151,14 +156,17 @@ Store Lucene's data in [Cassandra](http://cassandra.apache.org).
 ```java
 import com.github.ddth.cql.*;
 import com.github.ddth.lucext.directory.cassandra.*;
+import com.datastax.oss.driver.api.core.config.*;
 
 // 1. create a SessionManager instance
+ProgrammaticDriverConfigLoaderBuilder dclBuilder = DriverConfigLoader.programmaticBuilder();
+dclBuilder.withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+    .withString(DefaultDriverOption.AUTH_PROVIDER_USER_NAME, "cassandra")
+    .withString(DefaultDriverOption.AUTH_PROVIDER_PASSWORD, "cassandra");
 SessionManager sm = new SessionManager();
-sm.setDefaultHostsAndPorts("localhost")
-    .setDefaultUsername("cassandra-user")
-    .setDefaultPassword("cassandra-password)"
-    .setDefaultKeyspace(null)
-    .init();
+sm.setConfigLoader(dclBuilder.build());
+sm.setDefaultHostsAndPorts("localhost");
+sm.init();
 
 // 2. create CassandraDirectory
 Directory DIR = new CassandraDirectory(sm).setKeyspace("mykeyspace").init();
@@ -191,6 +199,7 @@ import com.github.ddth.cacheadapter.cacheimpl.redis.*;
 import com.github.ddth.commons.redis.*;
 import com.github.ddth.cql.*;
 import com.github.ddth.lucext.directory.cassandra.*;
+import com.datastax.oss.driver.api.core.config.*;
 
 // create a ICacheFactory
 JedisConnector jc = new JedisConnector();
@@ -198,20 +207,21 @@ jc.setRedisHostsAndPorts("localhost:6379").seetRedisPassword("secret").init();
 ICacheFactory cf = new RedisCacheFactory().setJedisConnector(jc).init();
 
 // CassandraDirectory with caching enabled
+ProgrammaticDriverConfigLoaderBuilder dclBuilder = DriverConfigLoader.programmaticBuilder();
+dclBuilder.withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+    .withString(DefaultDriverOption.AUTH_PROVIDER_USER_NAME, "cassandra")
+    .withString(DefaultDriverOption.AUTH_PROVIDER_PASSWORD, "cassandra");
 SessionManager sm = new SessionManager();
-sm.setDefaultHostsAndPorts("localhost")
-    .setDefaultUsername("cassandra-user")
-    .setDefaultPassword("cassandra-password)"
-    .setDefaultKeyspace(null)
-    .init();
+sm.setConfigLoader(dclBuilder.build());
+sm.setDefaultHostsAndPorts("localhost");
+sm.init();
 Directory DIR = new CassandraDirectory(sm)
-     .setKeyspace("my-keyspace")
+     .setKeyspace("mykeyspace")
      .setCacheFactory(cf).setCacheName("cachename")
      .init();
 ```
 
 (See more about `ICacheManager` [here](https://github.com/DDTH/ddth-cache-adapter))
-
 
 ### Examples
 
@@ -219,6 +229,6 @@ See more examples [here](./ddth-lucext-core/src/test/java/com/github/ddth/lucext
 
 ## License
 
-See LICENSE.txt for details. Copyright (c) 2018 Thanh Ba Nguyen.
+See LICENSE.txt for details. Copyright (c) 2018-2019 Thanh Ba Nguyen.
 
 Third party libraries are distributed under their own licenses.

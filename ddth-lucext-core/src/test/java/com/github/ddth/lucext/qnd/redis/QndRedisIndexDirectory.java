@@ -1,34 +1,25 @@
 package com.github.ddth.lucext.qnd.redis;
 
+import ch.qos.logback.classic.Level;
+import com.github.ddth.commons.redis.JedisConnector;
+import com.github.ddth.lucext.directory.redis.RedisDirectory;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.*;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.Term;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.index.Term;
-
-import com.github.ddth.commons.redis.JedisConnector;
-import com.github.ddth.lucext.directory.redis.RedisDirectory;
-
-import redis.clients.jedis.Jedis;
 
 public class QndRedisIndexDirectory extends BaseQndRedis {
 
@@ -37,29 +28,32 @@ public class QndRedisIndexDirectory extends BaseQndRedis {
     private static final AtomicLong JOBS_DONE = new AtomicLong(0);
 
     public static void main(String[] args) throws Exception {
-        JedisConnector jc = getJedisConnector();
-        try (Jedis jedis = jc.getJedis()) {
-            jedis.flushAll();
-        }
+        initLoggers(Level.INFO);
 
-        try (RedisDirectory DIR = new RedisDirectory(jc)) {
-            DIR.init();
+        try (JedisConnector jc = getJedisConnector()) {
+            try (Jedis jedis = jc.getJedis()) {
+                jedis.flushAll();
+            }
 
-            long t1 = System.currentTimeMillis();
+            try (RedisDirectory DIR = new RedisDirectory(jc)) {
+                DIR.init();
 
-            Analyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-            iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-            IndexWriter iw = new IndexWriter(DIR, iwc);
+                long t1 = System.currentTimeMillis();
 
-            Path docDir = Paths.get("./");
-            indexDocs(iw, docDir);
+                Analyzer analyzer = new StandardAnalyzer();
+                IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+                iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+                IndexWriter iw = new IndexWriter(DIR, iwc);
 
-            iw.commit();
-            iw.close();
+                Path docDir = Paths.get("./");
+                indexDocs(iw, docDir);
 
-            long t2 = System.currentTimeMillis();
-            System.out.println("Finished indexing in " + (t2 - t1) / 1000.0 + " sec");
+                iw.commit();
+                iw.close();
+
+                long t2 = System.currentTimeMillis();
+                System.out.println("Finished indexing in " + (t2 - t1) / 1000.0 + " sec");
+            }
         }
     }
 
@@ -67,8 +61,7 @@ public class QndRedisIndexDirectory extends BaseQndRedis {
         if (Files.isDirectory(path)) {
             Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
                 @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                        throws IOException {
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                     try {
                         indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
                     } catch (IOException ignore) {
@@ -84,9 +77,8 @@ public class QndRedisIndexDirectory extends BaseQndRedis {
 
     static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
         String filename = file.getFileName().toString().toLowerCase();
-        if (!filename.endsWith(".java") && !filename.endsWith(".properties")
-                && !filename.endsWith(".xml") && !filename.endsWith(".html")
-                && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
+        if (!filename.endsWith(".java") && !filename.endsWith(".properties") && !filename.endsWith(".xml") && !filename
+                .endsWith(".html") && !filename.endsWith(".txt") && !filename.endsWith(".md")) {
             return;
         }
 

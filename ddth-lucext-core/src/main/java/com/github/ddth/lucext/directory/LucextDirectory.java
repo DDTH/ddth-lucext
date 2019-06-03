@@ -1,32 +1,21 @@
 package com.github.ddth.lucext.directory;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.zip.CRC32;
-
+import com.github.ddth.cacheadapter.ICache;
+import com.github.ddth.cacheadapter.ICacheFactory;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.lucene.store.AlreadyClosedException;
-import org.apache.lucene.store.BaseDirectory;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.store.Lock;
-import org.apache.lucene.store.LockFactory;
+import org.apache.lucene.store.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.ddth.cacheadapter.ICache;
-import com.github.ddth.cacheadapter.ICacheFactory;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.*;
+import java.util.zip.CRC32;
 
 /**
  * Base class for Lucext's implementations of Lucene's {@link Directory}.
- * 
+ *
  * <p>
  * Design:
  * <ul>
@@ -36,7 +25,7 @@ import com.github.ddth.cacheadapter.ICacheFactory;
  * {@link #blockSize}-byte chunks.</li>
  * </ul>
  * </p>
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0
  */
@@ -52,7 +41,7 @@ public abstract class LucextDirectory extends BaseDirectory {
          * {@inheritDoc}
          */
         @Override
-        public Lock obtainLock(Directory dir, String lockName) throws IOException {
+        public Lock obtainLock(Directory dir, String lockName) {
             if (!(dir instanceof LucextDirectory)) {
                 throw new IllegalArgumentException(
                         "Expect argument of type [" + LucextDirectory.class.getName() + "]!");
@@ -76,7 +65,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * File's data can be divided into {@link #blockSize}-byte chunks.
-     * 
+     *
      * @return
      */
     public int getBlockSize() {
@@ -85,7 +74,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * File's data can be divided into {@link #blockSize}-byte chunks.
-     * 
+     *
      * @param blockSize
      * @return
      */
@@ -104,9 +93,10 @@ public abstract class LucextDirectory extends BaseDirectory {
     }
 
     /*----------------------------------------------------------------------*/
+
     /**
      * Cache factory to cache data.
-     * 
+     *
      * @return
      */
     public ICacheFactory getCacheFactory() {
@@ -115,7 +105,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Cache factory to cache data.
-     * 
+     *
      * @param cacheFactory
      * @return
      */
@@ -126,7 +116,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Name of cache to store cached data.
-     * 
+     *
      * @return
      */
     public String getCacheName() {
@@ -135,7 +125,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Name of cache to store cached data.
-     * 
+     *
      * @param cacheName
      * @return
      */
@@ -146,7 +136,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Cache key to store all file's metadata.
-     * 
+     *
      * @return
      */
     public String getCacheKeyAllFiles() {
@@ -155,7 +145,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Cache key to store all file's metadata.
-     * 
+     *
      * @param cacheKeyAllFiles
      * @return
      */
@@ -166,17 +156,16 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Get cache instance.
-     * 
+     *
      * @return
      */
     protected ICache getCache() {
-        return cacheFactory != null && cacheName != null ? cacheFactory.createCache(cacheName)
-                : null;
+        return cacheFactory != null && cacheName != null ? cacheFactory.createCache(cacheName) : null;
     }
 
     /**
      * Calculate cache key for a file's chunk of data.
-     * 
+     *
      * @param fileInfo
      * @param blockNum
      * @return
@@ -187,7 +176,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Calculate cache key for a file info.
-     * 
+     *
      * @param fileInfo
      * @return
      */
@@ -197,7 +186,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Calculate cache key for a file info.
-     * 
+     *
      * @param fileName
      * @return
      */
@@ -207,7 +196,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Get an item from cache.
-     * 
+     *
      * @param cacheKey
      * @param clazz
      * @return
@@ -224,7 +213,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Put an item to cache.
-     * 
+     *
      * @param cacheKey
      * @param obj
      * @return
@@ -240,7 +229,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Delete an item from cache.
-     * 
+     *
      * @param cacheKey
      */
     protected void removeFromCache(String cacheKey) {
@@ -254,7 +243,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Get all directory metdata.
-     * 
+     *
      * @return
      * @throws IOException
      */
@@ -262,7 +251,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Get a file's metadata.
-     * 
+     *
      * @param name
      * @return
      * @throws IOException
@@ -271,7 +260,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Remove a file's meetadata.
-     * 
+     *
      * @param fileInfo
      * @throws IOException
      */
@@ -288,26 +277,25 @@ public abstract class LucextDirectory extends BaseDirectory {
 
     /**
      * Loads a file's data chunk from storage.
-     * 
+     *
      * @param fileInfo
      * @param blockNum
      * @return {@code null} if file and/or block does not exist, otherwise a
-     *         {@code byte[]} with minimum {@link #BLOCK_SIZE} length is
-     *         returned
+     * {@code byte[]} with minimum {@link #blockSize} length is
+     * returned
      * @throws IOException
      */
     protected abstract byte[] readFileBlock(FileInfo fileInfo, int blockNum) throws IOException;
 
     /**
      * Write a file's data chunk to storage.
-     * 
+     *
      * @param fileInfo
      * @param blockNum
      * @param data
      * @throws IOException
      */
-    protected abstract void writeFileBlock(FileInfo fileInfo, int blockNum, byte[] data)
-            throws IOException;
+    protected abstract void writeFileBlock(FileInfo fileInfo, int blockNum, byte[] data) throws IOException;
 
     /**
      * {@inheritDoc}
@@ -353,8 +341,7 @@ public abstract class LucextDirectory extends BaseDirectory {
      * {@inheritDoc}
      */
     @Override
-    public IndexOutput createTempOutput(String prefix, String suffix, IOContext context)
-            throws IOException {
+    public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) throws IOException {
         String fileName = prefix + context.context + suffix + ".tmp";
         return createOutput(fileName, context);
     }
@@ -389,11 +376,19 @@ public abstract class LucextDirectory extends BaseDirectory {
         destroy();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<String> getPendingDeletions() throws IOException {
+        return Collections.emptySet();
+    }
+
     /*----------------------------------------------------------------------*/
 
     /**
      * Create a lock instance.
-     * 
+     *
      * @param lockName
      * @return
      */
@@ -446,13 +441,11 @@ public abstract class LucextDirectory extends BaseDirectory {
         @Override
         public void ensureValid() throws IOException {
             if (!locked) {
-                throw new AlreadyClosedException(
-                        "Lock instance is not held or already released: " + this);
+                throw new AlreadyClosedException("Lock instance is not held or already released: " + this);
             }
             FileInfo fileInfo = directory.getFileInfo(this.fileInfo.getName());
             if (fileInfo == null || !StringUtils.equals(fileInfo.getId(), this.fileInfo.getId())) {
-                throw new AlreadyClosedException(
-                        "Lock invalidated or is held by another source: " + this);
+                throw new AlreadyClosedException("Lock invalidated or is held by another source: " + this);
             }
         }
     }
@@ -497,8 +490,9 @@ public abstract class LucextDirectory extends BaseDirectory {
                 directory.updateFileInfo(fileInfo);
                 long t2 = System.currentTimeMillis();
                 if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("flushBlock(" + fileInfo.getId() + ":" + fileInfo.getName() + ","
-                            + (blockNum - 1) + ") in " + (t2 - t1) + " ms");
+                    LOGGER.trace(
+                            "flushBlock(" + fileInfo.getId() + ":" + fileInfo.getName() + "," + (blockNum - 1) + ") in "
+                                    + (t2 - t1) + " ms");
                 }
             }
         }
@@ -528,8 +522,8 @@ public abstract class LucextDirectory extends BaseDirectory {
             }
             long t2 = System.currentTimeMillis();
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("writeBytes(" + fileInfo.getId() + ":" + fileInfo.getName() + "/"
-                        + offset + "/" + length + ") in " + (t2 - t1) + " ms");
+                LOGGER.trace("writeBytes(" + fileInfo.getId() + ":" + fileInfo.getName() + "/" + offset + "/" + length
+                        + ") in " + (t2 - t1) + " ms");
             }
         }
 
@@ -574,8 +568,7 @@ public abstract class LucextDirectory extends BaseDirectory {
             this.end = fileInfo.getSize();
         }
 
-        public LucextIndexInput(String resourceDesc, LucextIndexInput another, long offset,
-                long length) {
+        public LucextIndexInput(String resourceDesc, LucextIndexInput another, long offset, long length) {
             super(resourceDesc);
             this.directory = another.directory;
             this.fileInfo = another.fileInfo;
@@ -595,8 +588,7 @@ public abstract class LucextDirectory extends BaseDirectory {
 
         private void loadBlock(int blockNum) throws IOException {
             if (LOGGER.isTraceEnabled()) {
-                final String logMsg = "loadBlock(" + fileInfo.getId() + ":" + fileInfo.getName()
-                        + "/" + blockNum + ")";
+                final String logMsg = "loadBlock(" + fileInfo.getId() + ":" + fileInfo.getName() + "/" + blockNum + ")";
                 LOGGER.trace(logMsg);
             }
             block = directory.readFileBlock(fileInfo, blockNum);
@@ -654,13 +646,13 @@ public abstract class LucextDirectory extends BaseDirectory {
         @Override
         public void seek(long pos) throws IOException {
             if (pos < 0 || pos + offset > end) {
-                throw new IllegalArgumentException(
-                        "Seek position is out of range [0," + length() + "]!");
+                throw new IllegalArgumentException("Seek position is out of range [0," + length() + "]!");
             }
 
             if (LOGGER.isTraceEnabled()) {
-                String logMsg = "seek(" + fileInfo.getId() + ":" + fileInfo.getName() + ","
-                        + isSlice + "," + offset + "/" + end + "," + pos + ") is called";
+                String logMsg =
+                        "seek(" + fileInfo.getId() + ":" + fileInfo.getName() + "," + isSlice + "," + offset + "/" + end
+                                + "," + pos + ") is called";
                 LOGGER.trace(logMsg);
             }
 
@@ -676,16 +668,15 @@ public abstract class LucextDirectory extends BaseDirectory {
          * {@inheritDoc}
          */
         @Override
-        public IndexInput slice(String sliceDescription, long offset, long length)
-                throws IOException {
+        public IndexInput slice(String sliceDescription, long offset, long length) throws IOException {
             if (LOGGER.isTraceEnabled()) {
-                String logMsg = "slice(" + sliceDescription + "," + offset + "," + length + ") -> "
-                        + fileInfo.getId() + ":" + fileInfo.getName();
+                String logMsg =
+                        "slice(" + sliceDescription + "," + offset + "," + length + ") -> " + fileInfo.getId() + ":"
+                                + fileInfo.getName();
                 LOGGER.trace(logMsg);
             }
             if (offset < 0 || length < 0 || offset + length > this.length()) {
-                throw new IllegalArgumentException(
-                        "slice(" + sliceDescription + ") " + " out of bounds: " + this);
+                throw new IllegalArgumentException("slice(" + sliceDescription + ") " + " out of bounds: " + this);
             }
             LucextIndexInput clone = new LucextIndexInput(sliceDescription, this, offset, length);
             clone.isSlice = true;
@@ -722,8 +713,8 @@ public abstract class LucextDirectory extends BaseDirectory {
             }
             long t2 = System.currentTimeMillis();
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("readBytes(" + fileInfo.getId() + ":" + fileInfo.getName() + "/"
-                        + offset + "/" + length + "] in " + (t2 - t1) + " ms");
+                LOGGER.trace("readBytes(" + fileInfo.getId() + ":" + fileInfo.getName() + "/" + offset + "/" + length
+                        + "] in " + (t2 - t1) + " ms");
             }
         }
     }

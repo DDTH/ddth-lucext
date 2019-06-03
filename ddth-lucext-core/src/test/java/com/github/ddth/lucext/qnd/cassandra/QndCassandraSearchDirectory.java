@@ -1,5 +1,12 @@
 package com.github.ddth.lucext.qnd.cassandra;
 
+import ch.qos.logback.classic.Level;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.config.ProgrammaticDriverConfigLoaderBuilder;
+import com.github.ddth.cacheadapter.ICacheFactory;
+import com.github.ddth.cql.SessionManager;
+import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -11,12 +18,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 
-import com.github.ddth.cacheadapter.ICacheFactory;
-import com.github.ddth.cql.SessionManager;
-import com.github.ddth.lucext.directory.cassandra.CassandraDirectory;
-
-import ch.qos.logback.classic.Level;
-
 public class QndCassandraSearchDirectory extends BaseQndCassandra {
 
     public static void main(String[] args) throws Exception {
@@ -24,7 +25,14 @@ public class QndCassandraSearchDirectory extends BaseQndCassandra {
 
         ICacheFactory cf = getCacheFactory(false);
 
+        ProgrammaticDriverConfigLoaderBuilder dclBuilder = DriverConfigLoader.programmaticBuilder();
+        dclBuilder.withString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER, "datacenter1")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_USER_NAME, "cassandra")
+                .withString(DefaultDriverOption.AUTH_PROVIDER_PASSWORD, "cassandra");
         try (SessionManager sm = getSessionManager()) {
+            sm.setConfigLoader(dclBuilder.build());
+            sm.setDefaultHostsAndPorts("localhost");
+
             try (CassandraDirectory DIR = new CassandraDirectory(sm)) {
                 DIR.setKeyspace("test").setCacheFactory(cf).setCacheName("lucext");
                 DIR.init();
@@ -51,7 +59,7 @@ public class QndCassandraSearchDirectory extends BaseQndCassandra {
                 ir.close();
 
                 long t2 = System.currentTimeMillis();
-                System.out.println("Finished indexing in " + (t2 - t1) / 1000.0 + " sec");
+                System.out.println("Finished searching in " + (t2 - t1) / 1000.0 + " sec");
             }
         }
     }

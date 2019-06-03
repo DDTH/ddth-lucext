@@ -1,8 +1,6 @@
 package com.github.ddth.lucext.qnd;
 
-import java.io.File;
-import java.io.IOException;
-
+import com.github.ddth.lucext.directory.IndexManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field.Store;
@@ -15,7 +13,8 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import com.github.ddth.lucext.directory.IndexManager;
+import java.io.File;
+import java.io.IOException;
 
 public class QndTransaction {
 
@@ -33,8 +32,8 @@ public class QndTransaction {
 
         try (Directory dir = FSDirectory.open(temp.toPath())) {
             try (IndexManager indexManager = new IndexManager(dir)) {
-                indexManager.setBackgroundCommitIndexPeriodMs(0)
-                        .setBackgroundRefreshIndexSearcherPeriodMs(0).setNrtIndexSearcher(true);
+                indexManager.setBackgroundCommitIndexPeriodMs(0).setBackgroundRefreshIndexSearcherPeriodMs(0)
+                        .setNrtIndexSearcher(true);
                 indexManager.init();
 
                 IndexWriter indexWriter = indexManager.getIndexWriter();
@@ -44,7 +43,6 @@ public class QndTransaction {
                     doc.add(new StringField("id", String.valueOf(i), Store.YES));
                     indexWriter.addDocument(doc);
                 }
-
                 countDocs(indexManager);
 
                 indexWriter.prepareCommit();
@@ -55,7 +53,17 @@ public class QndTransaction {
                     indexWriter.addDocument(doc);
                 }
                 countDocs(indexManager);
+                indexWriter.commit();
+
+                for (int i = 0; i < 10; i++) {
+                    Document doc = new Document();
+                    doc.add(new StringField("class", "test", Store.YES));
+                    doc.add(new StringField("id", String.valueOf(i + 10), Store.YES));
+                    indexWriter.addDocument(doc);
+                }
+                countDocs(indexManager);
                 indexWriter.rollback();
+                System.out.println("isOpen: " + indexWriter.isOpen());
                 countDocs(indexManager);
             }
         }
